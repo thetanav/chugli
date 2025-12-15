@@ -29,8 +29,10 @@ function Lobby() {
     mutationFn: async () => {
       const res = await client.room.create.post();
 
-      if (res.status === 200) {
-        router.push(`/room/${res.data?.roomId}`);
+      if (res.status === 200 && res.data?.roomId) {
+        // Set the owner token in a cookie before redirecting
+        document.cookie = `x-auth-token=${res.data.ownerToken}; path=/; max-age=3600; SameSite=Strict; ${process.env.NODE_ENV === 'production' ? 'Secure;' : ''}`;
+        router.push(`/room/${res.data.roomId}`);
       }
     },
   });

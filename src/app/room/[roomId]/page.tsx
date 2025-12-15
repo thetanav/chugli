@@ -7,7 +7,7 @@ import { IconLoader, IconSend } from "@tabler/icons-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
-import { use, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function formatTimeRemaining(seconds: number) {
   const mins = Math.floor(seconds / 60);
@@ -26,8 +26,6 @@ const Page = () => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [copyStatus, setCopyStatus] = useState("COPY");
-  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-
   const { data: ttlData } = useQuery({
     queryKey: ["ttl", roomId],
     queryFn: async () => {
@@ -36,20 +34,34 @@ const Page = () => {
     },
   });
 
-  useEffect(() => {
-    if (ttlData?.ttl !== undefined) setTimeRemaining(ttlData.ttl);
-  }, [ttlData]);
+  const { data: isSudo } = useQuery({
+    queryKey: ["meta", roomId],
+    queryFn: async () => {
+      const res = await client.room.sudo.get();
+      console.log("isSudo", res.data);
+      return res.data;
+    },
+  });
+
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   useEffect(() => {
-    if (timeRemaining === null || timeRemaining < 0) return;
+    if (ttlData?.ttl !== undefined && countdown === null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCountdown(ttlData.ttl);
+    }
+  }, [ttlData, countdown]);
 
-    if (timeRemaining === 0) {
+  useEffect(() => {
+    if (countdown === null || countdown < 0) return;
+
+    if (countdown === 0) {
       router.push("/?destroyed=true");
       return;
     }
 
     const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
+      setCountdown((prev) => {
         if (prev === null || prev <= 1) {
           clearInterval(interval);
           return 0;
@@ -59,7 +71,7 @@ const Page = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timeRemaining, router]);
+  }, [countdown, router]);
 
   const { data: messages, refetch } = useQuery({
     queryKey: ["messages", roomId],
@@ -133,23 +145,23 @@ const Page = () => {
             </span>
             <span
               className={`text-sm font-bold flex items-center gap-2 ${
-                timeRemaining !== null && timeRemaining < 60
+                countdown !== null && countdown < 60
                   ? "text-red-500"
                   : "text-amber-500"
               }`}>
-              {timeRemaining !== null
-                ? formatTimeRemaining(timeRemaining)
-                : "--:--"}
+              {countdown !== null ? formatTimeRemaining(countdown) : "--:--"}
             </span>
           </div>
         </div>
 
-        <button
-          onClick={() => destroyRoom()}
-          className="text-xs bg-zinc-800 hover:bg-red-600 px-3 py-1.5 rounded text-zinc-400 hover:text-white font-bold transition-all group flex items-center gap-2 disabled:opacity-50 cursor-pointer">
-          <span className="group-hover:animate-pulse">💣</span>
-          DESTROY NOW
-        </button>
+        {isSudo && (
+          <button
+            onClick={() => destroyRoom()}
+            className="text-xs bg-zinc-800 hover:bg-red-600 px-3 py-1.5 rounded text-zinc-400 hover:text-white font-bold transition-all group flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+            <span className="group-hover:animate-pulse">💣</span>
+            DESTROY NOW
+          </button>
+        )}
       </header>
 
       {/* MESSAGES */}

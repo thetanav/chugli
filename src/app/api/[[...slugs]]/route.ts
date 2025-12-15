@@ -1,5 +1,5 @@
 import { redis } from "@/lib/redis";
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { nanoid } from "nanoid";
 import { authMiddleware } from "./auth";
 import { z } from "zod";
@@ -7,20 +7,38 @@ import { Message, realtime } from "@/lib/realtime";
 
 const ROOM_TTL_SECONDS = 60 * 60;
 
-const rooms = new Elysia({ prefix: "/room" })
-  .post("/create", async () => {
-    const roomId = nanoid();
+const rooms = new Elysia({
+  prefix: "/room",
+}).post("/create", async ({ cookie }) => {
+  const roomId = nanoid();
+  const ownerToken = "c-" + nanoid();
 
-    await redis.hset(`meta:${roomId}`, {
-      connected: [],
-      createdAt: Date.now(),
-    });
+  cookie["x-auth-token"].set({
+    value: ownerToken,
+    path: "/",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  });
 
-    await redis.expire(`meta:${roomId}`, ROOM_TTL_SECONDS);
+  await redis.hset(`meta:${roomId}`, {
+    owner: ownerToken,
+    connected: [ownerToken],
+    createdAt: Date.now(),
+  });
 
-    return { roomId };
-  })
+  await redis.expire(`meta:${roomId}`, ROOM_TTL_SECONDS);
+
+  return { roomId, ownerToken };
+});
+
+const authenticatedRooms = new Elysia({ prefix: "/room" })
   .use(authMiddleware)
+  .get("/sudo", async ({ auth }) => {
+    const meta = await redis.hget(`meta:${auth.roomId}`, "owner");
+    if (auth.token == meta) return { owner: true };
+    return { owner: false };
+  })
   .get(
     "/ttl",
     async ({ auth }) => {
@@ -32,6 +50,9 @@ const rooms = new Elysia({ prefix: "/room" })
   .delete(
     "/",
     async ({ auth }) => {
+      const owner = await redis.hget(`meta:${auth.roomId}`, "owner");
+
+      if (auth.token !== owner) return;
       await realtime
         .channel(auth.roomId)
         .emit("chat.destroy", { isDestroyed: true });
@@ -108,7 +129,10 @@ const messages = new Elysia({ prefix: "/messages" })
     { query: z.object({ roomId: z.string() }) }
   );
 
-const app = new Elysia({ prefix: "/api" }).use(rooms).use(messages);
+const app = new Elysia({ prefix: "/api" })
+  .use(rooms)
+  .use(authenticatedRooms)
+  .use(messages);
 
 export const GET = app.fetch;
 export const POST = app.fetch;
