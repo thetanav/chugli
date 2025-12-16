@@ -3,17 +3,16 @@
 import { useUsername } from "@/hooks/use-username";
 import { client } from "@/lib/client";
 import { useRealtime } from "@/lib/realtime-client";
-import {
-  IconLoader,
-  IconSend,
-  IconTrash,
-  IconLock,
-} from "@tabler/icons-react";
+import { IconLoader, IconSend, IconTrash, IconLock } from "@tabler/icons-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { encryptMessage, decryptMessage, isEncryptionSupported } from "@/lib/crypto";
+import {
+  encryptMessage,
+  decryptMessage,
+  isEncryptionSupported,
+} from "@/lib/crypto";
 
 function formatTimeRemaining(seconds: number) {
   const mins = Math.floor(seconds / 60);
@@ -22,7 +21,11 @@ function formatTimeRemaining(seconds: number) {
 }
 
 // Helper hook to decrypt messages
-function useDecryptedMessages(messages: any[] | undefined, roomId: string, encryptionEnabled: boolean) {
+function useDecryptedMessages(
+  messages: any[] | undefined,
+  roomId: string,
+  encryptionEnabled: boolean
+) {
   const [decryptedMessages, setDecryptedMessages] = useState<any[]>([]);
 
   useEffect(() => {
@@ -123,12 +126,16 @@ const Page = () => {
   });
 
   // Decrypt messages if encryption is enabled
-  const decryptedMessages = useDecryptedMessages(messages?.messages, roomId, encryptionEnabled);
+  const decryptedMessages = useDecryptedMessages(
+    messages?.messages,
+    roomId,
+    encryptionEnabled
+  );
 
   const { mutate: sendMessage, isPending } = useMutation({
     mutationFn: async ({ text }: { text: string }) => {
       // Encrypt the message before sending if encryption is enabled
-      const messageText = encryptionEnabled 
+      const messageText = encryptionEnabled
         ? await encryptMessage(text, roomId)
         : text;
 
@@ -172,8 +179,7 @@ const Page = () => {
   });
 
   const copyLink = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(roomId);
     setCopyStatus("COPIED!");
     setTimeout(() => setCopyStatus("COPY"), 2000);
   };
@@ -185,9 +191,7 @@ const Page = () => {
           <div className="flex flex-col">
             <span className="text-xs text-zinc-500 uppercase">Room ID</span>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-green-500 truncate">
-                {roomId.slice(0, 20) + "..."}
-              </span>
+              <span className="font-bold">{roomId}</span>
               <button
                 onClick={copyLink}
                 className="text-[10px] bg-zinc-800 hover:bg-zinc-700 px-2 py-0.5 rounded text-zinc-400 hover:text-zinc-200 transition-colors">
@@ -201,8 +205,15 @@ const Page = () => {
           <div className="flex flex-col">
             <span className="text-xs text-zinc-500 uppercase">Encryption</span>
             <div className="flex items-center gap-1.5">
-              <IconLock className={`w-3 h-3 ${encryptionEnabled ? "text-green-500" : "text-zinc-600"}`} />
-              <span className={`text-xs font-bold ${encryptionEnabled ? "text-green-500" : "text-zinc-600"}`}>
+              <IconLock
+                className={`w-3 h-3 ${
+                  encryptionEnabled ? "text-green-500" : "text-zinc-600"
+                }`}
+              />
+              <span
+                className={`text-xs font-bold ${
+                  encryptionEnabled ? "text-green-500" : "text-zinc-600"
+                }`}>
                 {encryptionEnabled ? "ENABLED" : "DISABLED"}
               </span>
             </div>
@@ -246,26 +257,22 @@ const Page = () => {
         )}
 
         {decryptedMessages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex flex-col ${
-              msg.sender === username ? "items-end" : "items-start"
-            }`}>
+          <div key={msg.id} className="flex flex-col w-fit">
             <div className="flex gap-3 mb-1 items-center">
-              {isSudo && isSudo.owner && (
-                <button onClick={() => deleteMessage(msg.id)}>
-                  <IconTrash className="w-4 h-4 text-zinc-600 hover:text-zinc-400  cursor-pointer" />
-                </button>
-              )}
-              <span className="text-[10px] text-zinc-600">
-                {format(msg.timestamp, "HH:mm")}
-              </span>
               <span
-                className={`text-xs font-bold ${
+                className={`text-sm font-bold ${
                   msg.sender === username ? "text-green-500" : "text-blue-500"
                 }`}>
                 {msg.sender}
               </span>
+              <span className="text-xs text-zinc-400">
+                {format(msg.timestamp, "HH:mm")}
+              </span>
+              {isSudo && isSudo.owner && (
+                <button onClick={() => deleteMessage(msg.id)}>
+                  <IconTrash className="w-5 h-5 text-zinc-500 hover:text-zinc-300  cursor-pointer" />
+                </button>
+              )}
             </div>
 
             <p className="text-sm text-zinc-300 py-2 px-4 bg-zinc-700 rounded-xl">
@@ -278,9 +285,6 @@ const Page = () => {
       <div className="p-4">
         <div className="flex gap-2">
           <div className="flex-1 relative group">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-green-500 animate-pulse">
-              {">"}
-            </span>
             <input
               autoFocus
               type="text"
@@ -293,7 +297,7 @@ const Page = () => {
               }}
               placeholder="Type message..."
               onChange={(e) => setInput(e.target.value)}
-              className="w-full bg-black border rounded-full border-zinc-800 focus:border-zinc-700 focus:outline-none transition-colors text-zinc-100 placeholder:text-zinc-700 py-3 pl-8 pr-4 text-sm"
+              className="w-full bg-black border rounded-full border-zinc-600 focus:border-zinc-500 focus:outline-none transition-colors text-zinc-100 placeholder:text-zinc-400 py-3 px-5 text-md"
             />
           </div>
 
@@ -303,7 +307,7 @@ const Page = () => {
               inputRef.current?.focus();
             }}
             disabled={!input.trim() || isPending}
-            className="bg-zinc-800 text-zinc-400 px-4 text-sm font-bold hover:text-zinc-200 hover:bg-zinc-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex gap-2 items-center justify-center rounded-full">
+            className="bg-zinc-800 text-zinc-400 px-4 text-sm font-bold hover:text-zinc-200 hover:bg-zinc-700 transition-all disabled:cursor-not-allowed cursor-pointer flex gap-2 items-center justify-center rounded-full">
             {isPending ? (
               <IconLoader className="animate-spin w-4 h-4" />
             ) : (
