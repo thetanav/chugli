@@ -9,6 +9,7 @@ const message = z.object({
   timestamp: z.number(),
   roomId: z.string(),
   token: z.string().optional(),
+  encrypted: z.boolean().optional(), // Indicates if message text is encrypted
 });
 
 const schema = {

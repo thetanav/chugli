@@ -7,16 +7,47 @@ import {
   IconLoader,
   IconSend,
   IconTrash,
+  IconLock,
 } from "@tabler/icons-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { encryptMessage, decryptMessage, isEncryptionSupported } from "@/lib/crypto";
 
 function formatTimeRemaining(seconds: number) {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+// Helper hook to decrypt messages
+function useDecryptedMessages(messages: any[] | undefined, roomId: string, encryptionEnabled: boolean) {
+  const [decryptedMessages, setDecryptedMessages] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!messages || !encryptionEnabled) {
+      setDecryptedMessages(messages || []);
+      return;
+    }
+
+    const decryptAll = async () => {
+      const decrypted = await Promise.all(
+        messages.map(async (msg) => {
+          if (msg.encrypted) {
+            const decryptedText = await decryptMessage(msg.text, roomId);
+            return { ...msg, text: decryptedText };
+          }
+          return msg;
+        })
+      );
+      setDecryptedMessages(decrypted);
+    };
+
+    decryptAll();
+  }, [messages, roomId, encryptionEnabled]);
+
+  return decryptedMessages;
 }
 
 const Page = () => {
@@ -28,8 +59,14 @@ const Page = () => {
   const { username } = useUsername();
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [encryptionEnabled, setEncryptionEnabled] = useState(false);
 
   const [copyStatus, setCopyStatus] = useState("COPY");
+
+  // Check if encryption is supported
+  useEffect(() => {
+    setEncryptionEnabled(isEncryptionSupported());
+  }, []);
   const { data: ttlData } = useQuery({
     queryKey: ["ttl", roomId],
     queryFn: async () => {
@@ -85,10 +122,18 @@ const Page = () => {
     },
   });
 
+  // Decrypt messages if encryption is enabled
+  const decryptedMessages = useDecryptedMessages(messages?.messages, roomId, encryptionEnabled);
+
   const { mutate: sendMessage, isPending } = useMutation({
     mutationFn: async ({ text }: { text: string }) => {
+      // Encrypt the message before sending if encryption is enabled
+      const messageText = encryptionEnabled 
+        ? await encryptMessage(text, roomId)
+        : text;
+
       await client.messages.post(
-        { sender: username, text },
+        { sender: username, text: messageText },
         { query: { roomId } }
       );
 
@@ -154,6 +199,18 @@ const Page = () => {
           <div className="h-8 w-px bg-zinc-800" />
 
           <div className="flex flex-col">
+            <span className="text-xs text-zinc-500 uppercase">Encryption</span>
+            <div className="flex items-center gap-1.5">
+              <IconLock className={`w-3 h-3 ${encryptionEnabled ? "text-green-500" : "text-zinc-600"}`} />
+              <span className={`text-xs font-bold ${encryptionEnabled ? "text-green-500" : "text-zinc-600"}`}>
+                {encryptionEnabled ? "ENABLED" : "DISABLED"}
+              </span>
+            </div>
+          </div>
+
+          <div className="h-8 w-px bg-zinc-800" />
+
+          <div className="flex flex-col">
             <span className="text-xs text-zinc-500 uppercase">
               Self-Destruct
             </span>
@@ -180,7 +237,7 @@ const Page = () => {
 
       {/* MESSAGES */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
-        {messages?.messages.length === 0 && (
+        {decryptedMessages.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <p className="text-zinc-600 text-sm font-mono">
               No messages yet, start the conversation.
@@ -188,7 +245,7 @@ const Page = () => {
           </div>
         )}
 
-        {messages?.messages.map((msg) => (
+        {decryptedMessages.map((msg) => (
           <div
             key={msg.id}
             className={`flex flex-col ${

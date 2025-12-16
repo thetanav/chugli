@@ -129,6 +129,7 @@ const messages = new Elysia({ prefix: "/messages" })
         text,
         timestamp: Date.now(),
         roomId,
+        encrypted: true, // Mark message as encrypted (client encrypts before sending)
       };
 
       // add message to history
