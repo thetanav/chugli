@@ -1,3 +1,24 @@
-[ ] desappearing messages
-[ ] change name
-[ ] reply once message
+## Crazy Feature Ideas
+
+- AI-powered message reactions: Analyze sentiment and auto-suggest emoji reactions based on message content
+- Ephemeral message bombs: Messages that multiply and spam when opened, with time-to-detonate countdown
+- Typing ghost mode: Show animated ghost cursors for users who haven't typed in X seconds as a joke
+- Message encryption tournament: Users can send encrypted messages and others race to decrypt them
+- Spam score leaderboard: Real-time ranking of chattiest users with achievements for talk streaks
+- Chaos mode toggle: Random message scrambling, reversed text, or pig latin conversion for all room messages
+- Voice-to-emoji synthesis: Convert message sentiment to animated emoji swarms floating across the screen
+- Message physics engine: Messages fall, bounce, or orbit each other like particles in a gravity simulation
+- Anonymous roast battles: Users can anonymously challenge others to witty comebacks with scoring system
+- Room weather system: Visual weather effects based on room activity level (storms = chaos, clear = quiet)
+- Reaction chain explosions: When 5+ users react with same emoji, trigger confetti and noise effects
+- Time traveler mode: Messages get delivered with random delays, showing when they'll actually arrive
+- Message treasure hunt: Hide keywords in chat that users must find for bonus points/achievements
+- Live streaming integration: Broadcast live reactions and message snippets to a side-by-side stream view
+- Collaborative story mode: Users take turns adding sentences to build an ongoing story in the room
+
+- [ ] Implement Redis Streams instead of Pub/Sub for message persistence + subscriptions
+- [ ] Add Message Batching - collect N messages in-memory, flush every X ms
+- [ ] Use Sorted Sets instead of arrays for user connection tracking (O(1) lookups)
+- [ ] Implement Pagination for message history (load only last 50, lazy load older)
+- [ ] Add Bloom Filters to deduplicate duplicate messages in high-load scenarios
+- [ ] Enable Redis connection pooling multiplexing (reuse subscribers per room)

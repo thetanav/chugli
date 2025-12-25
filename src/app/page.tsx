@@ -22,7 +22,9 @@ const Page = () => {
 export default Page;
 
 function Lobby() {
-  const [username, setUsername] = useState(() => getUsername() || generateUsername());
+  const [username, setUsername] = useState(
+    () => getUsername() || generateUsername()
+  );
 
   const router = useRouter();
   const [roomIdInput, setRoomIdInput] = useState("");

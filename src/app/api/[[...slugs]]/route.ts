@@ -4,8 +4,11 @@ import { nanoid } from "nanoid";
 import { authMiddleware } from "./auth";
 import { z } from "zod";
 import { Message, realtime } from "@/lib/realtime";
+import { rateLimit } from "elysia-rate-limit";
+import compression from "elysia-compress";
 
 const ROOM_TTL_SECONDS = 10 * 60;
+const MAX_ROOM_CONNECTIONS = 30;
 
 const rooms = new Elysia({
   prefix: "/room",
@@ -45,6 +48,13 @@ const rooms = new Elysia({
 
       const userToken = "u-" + nanoid();
 
+      const currentConnected =
+        (await redis.hget<string[]>(`meta:${roomId}`, "connected")) || [];
+
+      if (currentConnected.length >= MAX_ROOM_CONNECTIONS) {
+        throw new Error("Room is full");
+      }
+
       cookie["x-auth-token"].set({
         value: userToken,
         path: "/",
@@ -53,8 +63,6 @@ const rooms = new Elysia({
         sameSite: "strict",
       });
 
-      const currentConnected =
-        (await redis.hget<string[]>(`meta:${roomId}`, "connected")) || [];
       const updatedConnected = [...currentConnected, userToken];
 
       await redis.hset(`meta:${roomId}`, {
@@ -111,6 +119,29 @@ const authenticatedRooms = new Elysia({ prefix: "/room" })
 
 const messages = new Elysia({ prefix: "/messages" })
   .use(authMiddleware)
+  .get(
+    "/",
+    async ({ auth }) => {
+      const messages = await redis.lrange<Message>(
+        `messages:${auth.roomId}`,
+        0,
+        -1
+      );
+
+      return {
+        messages: messages.map((m) => ({
+          ...m,
+          token: m.token === auth.token ? auth.token : undefined,
+        })),
+      };
+    },
+    { query: z.object({ roomId: z.string() }) }
+  )
+  // .use(
+  //   rateLimit({
+  //     max: 20,
+  //   })
+  // )
   .post(
     "/",
     async ({ body, auth }) => {
@@ -158,24 +189,6 @@ const messages = new Elysia({ prefix: "/messages" })
       }),
     }
   )
-  .get(
-    "/",
-    async ({ auth }) => {
-      const messages = await redis.lrange<Message>(
-        `messages:${auth.roomId}`,
-        0,
-        -1
-      );
-
-      return {
-        messages: messages.map((m) => ({
-          ...m,
-          token: m.token === auth.token ? auth.token : undefined,
-        })),
-      };
-    },
-    { query: z.object({ roomId: z.string() }) }
-  )
   .delete(
     "/",
     async ({ body, auth }) => {
@@ -185,8 +198,12 @@ const messages = new Elysia({ prefix: "/messages" })
 
       if (meta != auth.token) return { error: "Unauthorized" };
 
-      // delete message from redis with id and roomId
-      await redis.del(`messages:${auth.roomId}`, id);
+      // Delete message by ID from the list
+      const deleted = await redis.lremByMessageId(`messages:${auth.roomId}`, id);
+
+      if (deleted === 0) {
+        return { error: "Message not found" };
+      }
 
       await realtime.channel(auth.roomId).emit("chat.delete", { id });
 
@@ -201,6 +218,7 @@ const messages = new Elysia({ prefix: "/messages" })
   );
 
 const app = new Elysia({ prefix: "/api" })
+  // .use(compression())
   .use(rooms)
   .use(authenticatedRooms)
   .use(messages);

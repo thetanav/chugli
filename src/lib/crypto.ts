@@ -3,7 +3,7 @@
  * Uses AES-GCM for symmetric encryption with keys derived from room ID
  */
 
-const SALT = "nextjs-realtime-e2ee-v1"; // Static salt for key derivation
+const SALT = process.env.ENCRYPTION_SALT;
 
 /**
  * Derive an AES-GCM encryption key from a room ID

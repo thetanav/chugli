@@ -7,7 +7,7 @@ class RedisClient {
   static getInstance(): Redis {
     if (!RedisClient.instance) {
       const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
-      
+
       RedisClient.instance = new Redis(redisUrl, {
         maxRetriesPerRequest: 3,
         enableReadyCheck: true,
@@ -92,7 +92,7 @@ class OptimizedRedisWrapper {
   async hgetall<T = any>(key: string): Promise<T | null> {
     const values = await this.client.hgetall(key);
     if (!values || Object.keys(values).length === 0) return null;
-    
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result: Record<string, any> = {};
     for (const [field, value] of Object.entries(values)) {
@@ -129,7 +129,11 @@ class OptimizedRedisWrapper {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async lrange<T = any>(key: string, start: number, stop: number): Promise<T[]> {
+  async lrange<T = any>(
+    key: string,
+    start: number,
+    stop: number
+  ): Promise<T[]> {
     const values = await this.client.lrange(key, start, stop);
     return values.map((v: string) => {
       try {
@@ -142,7 +146,9 @@ class OptimizedRedisWrapper {
 
   // Optimized batch operations
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async multiHset(operations: Array<{ key: string; data: Record<string, any> }>): Promise<void> {
+  async multiHset(
+    operations: Array<{ key: string; data: Record<string, any> }>
+  ): Promise<void> {
     const pipeline = this.client.pipeline();
     for (const { key, data } of operations) {
       for (const [field, value] of Object.entries(data)) {
@@ -152,7 +158,9 @@ class OptimizedRedisWrapper {
     await pipeline.exec();
   }
 
-  async multiExpire(operations: Array<{ key: string; seconds: number }>): Promise<void> {
+  async multiExpire(
+    operations: Array<{ key: string; seconds: number }>
+  ): Promise<void> {
     const pipeline = this.client.pipeline();
     for (const { key, seconds } of operations) {
       pipeline.expire(key, seconds);
@@ -183,6 +191,30 @@ class OptimizedRedisWrapper {
       }
     });
     return subscriber;
+  }
+
+  // Remove message by ID from a list (searches for JSON with matching id field)
+  async lremByMessageId(
+    key: string,
+    messageId: string
+  ): Promise<number> {
+    const messages = await this.lrange<{ id: string }>(key, 0, -1);
+    const updatedMessages = messages.filter((m) => m.id !== messageId);
+
+    if (updatedMessages.length === messages.length) {
+      return 0; // No message found
+    }
+
+    // Delete the entire list and repush filtered messages
+    await this.client.del(key);
+    if (updatedMessages.length > 0) {
+      const stringifiedMessages = updatedMessages.map((m) =>
+        JSON.stringify(m)
+      );
+      await this.client.rpush(key, ...stringifiedMessages);
+    }
+
+    return messages.length - updatedMessages.length;
   }
 
   // Get raw client for advanced operations
