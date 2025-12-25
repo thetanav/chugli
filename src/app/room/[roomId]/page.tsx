@@ -29,14 +29,17 @@ function formatTimeRemaining(seconds: number) {
 
 // Helper hook to decrypt messages
 function useDecryptedMessages(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   messages: any[] | undefined,
   roomId: string,
   encryptionEnabled: boolean
 ) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [decryptedMessages, setDecryptedMessages] = useState<any[]>([]);
 
   useEffect(() => {
     if (!messages || !encryptionEnabled) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDecryptedMessages(messages || []);
       return;
     }
@@ -96,6 +99,7 @@ const Page = () => {
 
   // Check if encryption is supported
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEncryptionEnabled(isEncryptionSupported());
   }, []);
   const { data: ttlData } = useQuery({
@@ -365,7 +369,7 @@ const Page = () => {
                 // Send message on Enter (without Shift)
                 if (e.key === "Enter" && !e.shiftKey && input.trim()) {
                   e.preventDefault();
-                  sendMessage({ text: input, replyTo: replyTo?.id! });
+                  sendMessage({ text: input, replyTo: replyTo?.id || null });
                   inputRef.current?.focus();
                 }
                 // Shift+Enter creates a new line (default behavior)
@@ -379,7 +383,7 @@ const Page = () => {
 
           <button
             onClick={() => {
-              sendMessage({ text: input, replyTo: replyTo?.id! });
+              sendMessage({ text: input, replyTo: replyTo?.id || null });
               inputRef.current?.focus();
             }}
             disabled={!input.trim() || isPending}

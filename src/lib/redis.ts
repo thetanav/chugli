@@ -67,6 +67,7 @@ class OptimizedRedisWrapper {
   }
 
   // Optimized methods with proper JSON handling
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async hset(key: string, data: Record<string, any>): Promise<number> {
     const pipeline = this.client.pipeline();
     for (const [field, value] of Object.entries(data)) {
@@ -76,6 +77,7 @@ class OptimizedRedisWrapper {
     return results?.length || 0;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async hget<T = any>(key: string, field: string): Promise<T | null> {
     const value = await this.client.hget(key, field);
     if (!value) return null;
@@ -86,10 +88,12 @@ class OptimizedRedisWrapper {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async hgetall<T = any>(key: string): Promise<T | null> {
     const values = await this.client.hgetall(key);
     if (!values || Object.keys(values).length === 0) return null;
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result: Record<string, any> = {};
     for (const [field, value] of Object.entries(values)) {
       try {
@@ -118,11 +122,13 @@ class OptimizedRedisWrapper {
     return await this.client.del(...keys);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async rpush(key: string, ...values: any[]): Promise<number> {
     const stringifiedValues = values.map((v) => JSON.stringify(v));
     return await this.client.rpush(key, ...stringifiedValues);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async lrange<T = any>(key: string, start: number, stop: number): Promise<T[]> {
     const values = await this.client.lrange(key, start, stop);
     return values.map((v: string) => {
@@ -135,6 +141,7 @@ class OptimizedRedisWrapper {
   }
 
   // Optimized batch operations
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async multiHset(operations: Array<{ key: string; data: Record<string, any> }>): Promise<void> {
     const pipeline = this.client.pipeline();
     for (const { key, data } of operations) {

@@ -9,10 +9,13 @@ export const generateUsername = () => {
 };
 
 export const storeUsername = (username: string) => {
-  localStorage.setItem(STORAGE_KEY, username);
+  if (typeof window !== "undefined") {
+    localStorage.setItem(STORAGE_KEY, username);
+  }
 };
 
 export const getUsername = () => {
+  if (typeof window === "undefined") return null;
   const storedUsername = localStorage.getItem(STORAGE_KEY);
   if (storedUsername?.trim() != "") return storedUsername;
   return null;

@@ -9,7 +9,7 @@ import { client } from "@/lib/client";
 import { IconLoader, IconRefresh } from "@tabler/icons-react";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 
 const Page = () => {
   return (
@@ -22,11 +22,7 @@ const Page = () => {
 export default Page;
 
 function Lobby() {
-  const [username, setUsername] = useState("");
-
-  useEffect(() => {
-    setUsername(getUsername() || generateUsername());
-  }, []);
+  const [username, setUsername] = useState(() => getUsername() || generateUsername());
 
   const router = useRouter();
   const [roomIdInput, setRoomIdInput] = useState("");
