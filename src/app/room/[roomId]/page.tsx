@@ -1,6 +1,6 @@
 "use client";
 
-import { useUsername } from "@/hooks/use-username";
+import { getUsername } from "@/hooks/use-username";
 import { client } from "@/lib/client";
 import { useRealtime } from "@/lib/realtime-client";
 import {
@@ -66,15 +66,31 @@ const Page = () => {
 
   const router = useRouter();
 
-  const { username } = useUsername();
+  const username = getUsername();
   const [input, setInput] = useState("");
   const [replyTo, setReplyTo] = useState<{
     id: string;
     text: string;
     senderName: string;
   } | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [encryptionEnabled, setEncryptionEnabled] = useState(false);
+
+  // Auto-resize textarea based on content
+  const adjustTextareaHeight = () => {
+    const textarea = inputRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      const scrollHeight = textarea.scrollHeight;
+      // Max height is 144px (max-h-36 = 36*4px = 144px)
+      textarea.style.height = Math.min(scrollHeight, 144) + "px";
+    }
+  };
+
+  // Adjust height when input changes
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [input]);
 
   const [copyStatus, setCopyStatus] = useState("COPY");
 
@@ -159,12 +175,12 @@ const Page = () => {
 
       if (replyTo) {
         await client.messages.post(
-          { sender: username, text: messageText, replyTo },
+          { sender: username!, text: messageText, replyTo },
           { query: { roomId } }
         );
       } else {
         await client.messages.post(
-          { sender: username, text: messageText },
+          { sender: username!, text: messageText },
           { query: { roomId } }
         );
       }
@@ -244,8 +260,8 @@ const Page = () => {
         {isSudo && isSudo.owner && (
           <button
             onClick={() => destroyRoom()}
-            className="text-md border-2 border-zinc-800 active:bg-red-600 active:border-red-600 p-2 rounded text-zinc-400 active:text-white font-bold transition-all group flex items-center gap-2 disabled:opacity-50 cursor-pointer">
-            <span className="group-active:animate-pulse">💣</span>
+            className="text-md border-2 border-zinc-800 active:bg-red-600 active:border-red-600 p-2 px-3 rounded text-zinc-400 active:text-white font-bold transition-all group flex items-center gap-2 disabled:opacity-50 cursor-pointer">
+            💣
           </button>
         )}
       </header>
@@ -301,7 +317,7 @@ const Page = () => {
 
               {/* WhatsApp-style reply indicator */}
               {repliedMessage && (
-                <div className="mb-2 pl-3 border-l-2 border-blue-500 bg-zinc-800/50 rounded-r-md py-1.5 pr-2">
+                <div className="mb-2 pl-3 border-l-2 border-blue-500 bg-zinc-800/50 py-1.5 pr-2">
                   <span
                     className={`text-xs font-semibold ${
                       repliedMessage.sender === username
@@ -310,7 +326,7 @@ const Page = () => {
                     }`}>
                     {repliedMessage.sender}
                   </span>
-                  <p className="text-xs text-zinc-400 line-clamp-1">
+                  <p className="text-xs text-zinc-400 line-clamp-1 text-ellipsis">
                     {repliedMessage.text}
                   </p>
                 </div>
@@ -324,7 +340,7 @@ const Page = () => {
 
       <div className="p-2">
         <div className="flex items-end gap-2">
-          <div className="flex-1 relative group w-full bg-black border rounded-md border-zinc-600 focus:border-zinc-500 focus:outline-none transition-colors p-3 h-fit">
+          <div className="flex-1 relative group w-full bg-black border rounded-md border-zinc-600 focus:border-zinc-500 focus:outline-none transition-colors px-3 py-2 min-h-6 h-fit">
             {replyTo && (
               <div className="mb-3 animate-in fade-in fade-out slide-out-to-top-10 slide-in-from-bottom-10 flex items-center justify-between">
                 <div>
@@ -342,18 +358,22 @@ const Page = () => {
               </div>
             )}
             <textarea
+              ref={inputRef}
               autoFocus
               value={input}
-              // onKeyDown={(e) => {
-              //   if (e.key === "Enter" && input.trim()) {
-              //     sendMessage({ text: input, replyTo: replyTo?.id! });
-              //     inputRef.current?.focus();
-              //   }
-              // }}
-              placeholder="Message..."
+              onKeyDown={(e) => {
+                // Send message on Enter (without Shift)
+                if (e.key === "Enter" && !e.shiftKey && input.trim()) {
+                  e.preventDefault();
+                  sendMessage({ text: input, replyTo: replyTo?.id! });
+                  inputRef.current?.focus();
+                }
+                // Shift+Enter creates a new line (default behavior)
+              }}
+              placeholder="Message"
+              cols={1}
               onChange={(e) => setInput(e.target.value)}
-              // the text area should increase in height as the user types
-              className="outline-none border-none text-zinc-100 placeholder:text-zinc-400 text-md resize-y appearance-none min-h-5 max-h-36 w-full"
+              className="outline-none border-none text-zinc-100 placeholder:text-zinc-400 text-md resize-none appearance-none h-full max-h-36 w-full overflow-y-auto border border-zinc-200"
             />
           </div>
 
